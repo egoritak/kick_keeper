@@ -32,13 +32,13 @@ go run .
 Now you can send POST json requests.
 
 ###JSON structure
-{
-    "company": string,
-    "kickname": string,
-    "status": string,
-    "lat": float64,
-    "lon": float64,
-    "speed": float64 
+{<br />
+    "company": string,<br />
+    "kickname": string,<br />
+    "status": string,<br />
+    "lat": float64,<br />
+    "lon": float64, <br />
+    "speed": float64 <br />
 } 
 
 ## Packages
