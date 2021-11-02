@@ -33,6 +33,8 @@ func (mydb myDB) SetupConnection() error {
 	//API routes
 	router := mux.NewRouter()
 	router.HandleFunc("/kicks", mydb.PullKicks).Methods("GET")
+	router.HandleFunc("/post/kick", mydb.PostKick).Methods("POST")
+	router.HandleFunc("/post/kicks", mydb.PostKicks).Methods("POST")
 
 	if mydb.Dialect == "postgres" {
 		db, err = gorm.Open(mydb.Dialect, dbURI)
@@ -48,11 +50,18 @@ func (mydb myDB) SetupConnection() error {
 		ConnectPsql(router)
 
 	} else if mydb.Dialect == "mongodb" {
+
 		//setup mongodb client
-		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-		clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
-		client, _ = mongo.Connect(ctx, clientOptions)
+		ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+		clientOptions := options.Client().ApplyURI("mongodb://postgres:qwerty@localhost:27017/kick_keeper") //"mongodb://localhost:27017")
+		client, err = mongo.Connect(ctx, clientOptions)
+		if err != nil {
+			log.Fatal("Failed connect to mongodb", err)
+		} else {
+			fmt.Println("Successful connection to database")
+		}
 		ConnectMongo(router)
+
 	}
 
 	return nil
@@ -78,11 +87,11 @@ func (mydb myDB) PullKicks(w http.ResponseWriter, r *http.Request) {
 	} else if mydb.Dialect == "mongodb" {
 		w.Header().Set("content-type", "application/json")
 		var kicks []Kick
-		collection := client.Database("mongodb").Collection("kicks")
+		collection := client.Database(mydb.DBName).Collection("kicks")
 		ctx, _ := context.WithTimeout(context.Background(), 30*time.Second)
 		cursor, err := collection.Find(ctx, bson.M{})
 		if err != nil {
-			//w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 			return
 		}
@@ -93,7 +102,7 @@ func (mydb myDB) PullKicks(w http.ResponseWriter, r *http.Request) {
 			kicks = append(kicks, kick)
 		}
 		if err := cursor.Err(); err != nil {
-			//w.WriteHeader(http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(`{ "message": "` + err.Error() + `" }`))
 			return
 		}
@@ -101,13 +110,86 @@ func (mydb myDB) PullKicks(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (mydb myDB) PullKick(w http.ResponseWriter, r *http.Request) {
-}
 func (mydb myDB) PostKick(w http.ResponseWriter, r *http.Request) {
+	if mydb.Dialect == "postgres" {
+		var kick Kick
+
+		err = json.NewDecoder(r.Body).Decode(&kick)
+
+		if err != nil {
+			json.NewEncoder(w).Encode("Json Error")
+			return
+		}
+
+		createdKick := db.Create(&kick)
+		err = createdKick.Error
+		if err != nil {
+			json.NewEncoder(w).Encode(err)
+		} else {
+			json.NewEncoder(w).Encode(&kick)
+		}
+
+	} else if mydb.Dialect == "mongodb" {
+		w.Header().Set("content-type", "application/json")
+		var kick Kick
+		err := json.NewDecoder(r.Body).Decode(&kick)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Println("Bad Json")
+			return
+		}
+		collection := client.Database(mydb.DBName).Collection("kicks")
+		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+		result, err := collection.InsertOne(ctx, kick)
+		if err != nil {
+			w.WriteHeader(http.StatusNotAcceptable)
+		}
+		err = json.NewEncoder(w).Encode(result)
+		if err != nil {
+			w.WriteHeader(http.StatusConflict)
+		}
+	}
 }
 func (mydb myDB) PostKicks(w http.ResponseWriter, r *http.Request) {
-}
-func (mydb myDB) DeleteKick(w http.ResponseWriter, r *http.Request) {
-}
-func (mydb myDB) DeleteKicks(w http.ResponseWriter, r *http.Request) {
+	if mydb.Dialect == "postgres" {
+		var kicks []Kick
+
+		err = json.NewDecoder(r.Body).Decode(&kicks)
+
+		if err != nil {
+			json.NewEncoder(w).Encode(err)
+		}
+
+		for idx := range kicks {
+			createdKick := db.Create(&kicks[idx])
+			err = createdKick.Error
+			if err != nil {
+				json.NewEncoder(w).Encode(err)
+			}
+		}
+		json.NewEncoder(w).Encode("All kicks were pushed")
+	} else if mydb.Dialect == "mongodb" {
+		w.Header().Set("content-type", "application/json")
+		var kicks []Kick
+		err := json.NewDecoder(r.Body).Decode(&kicks)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Println("Bad Json")
+			return
+		}
+		collection := client.Database(mydb.DBName).Collection("kicks")
+		ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+
+		for idx := range kicks {
+			result, err := collection.InsertOne(ctx, kicks[idx])
+			if err != nil {
+				w.WriteHeader(http.StatusNotAcceptable)
+			}
+			err = json.NewEncoder(w).Encode(result)
+			if err != nil {
+				w.WriteHeader(http.StatusConflict)
+			}
+		}
+		json.NewEncoder(w).Encode("All kicks were pushed")
+	}
 }

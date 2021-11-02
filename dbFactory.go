@@ -5,7 +5,7 @@ import "fmt"
 func getDB(dbType string) (dbWorker, error) {
 	if dbType == "postgres" {
 		return newPostgr(), nil
-	} else if dbType == "mongo" {
+	} else if dbType == "mongodb" {
 		return newMongo(), nil
 	}
 
