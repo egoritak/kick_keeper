@@ -31,11 +31,7 @@ go run .
 
 Now you can send POST json requests.
 
-<<<<<<< HEAD
 ## JSON structure
-=======
-###JSON structure
->>>>>>> e148df2aa60288342af396810065231120f7e6d2
 {<br />
     "company": string,<br />
     "kickname": string,<br />
