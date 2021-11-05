@@ -31,6 +31,10 @@ go run .
 
 Now you can send POST json requests.
 
+## HANDLERS
+"/kick" - to post the only json document.
+"/kicks" - to post many json documents.
+
 ## JSON structure
 {<br />
     "company": string,<br />

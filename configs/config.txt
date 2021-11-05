@@ -1,0 +1,6 @@
+DIALECT=mongodb
+HOST=localhost
+DBPORT=27017
+USER=postgres
+NAME=kick_keeper
+PASSWORD=qwerty
